@@ -27,6 +27,12 @@ class Editor {
     this.root = root;
 
     this.element.appendChild(element);
+
+    const innerText = this.getInnerText();
+    const url = new URL(window.location.href);
+    url.searchParams.set("query", innerText);
+
+    history.replaceState(null, "", url.toString());
   }
 
   getInnerText() {
@@ -50,6 +56,21 @@ class Editor {
 
 const editor = new Editor(document.querySelector("#editor") as HTMLElement);
 editor.setRoot(constructNode(editor.getInnerText()));
+
+document.addEventListener("paste", (e: ClipboardEvent) => {
+  if (e.clipboardData) {
+    const node = constructNode(e.clipboardData.getData("text/plain"));
+    editor.setRoot(node);
+  }
+});
+
+const params = new URLSearchParams(window.location.search);
+const query = params.get("query");
+
+if (query) {
+  const node = constructNode(query);
+  editor.setRoot(node);
+}
 
 function isEncoded(value: string) {
   try {
