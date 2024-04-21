@@ -1,13 +1,23 @@
+body {
+  font-family: monospace;
+}
+
 #app {
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+}
 
+section#author {
+  position: fixed;
+  right: 5px;
+  bottom: 5px;
+  color: lightgray;
+  
 }
 
 h1 {
-  font-family: monospace;
   font-size: 30px;
 }
 
@@ -24,29 +34,36 @@ button.toggle {
   line-height: 10px;
   padding: 4px 8px;
   border-radius: 5px;
-  font-family: monospace;
   display: flex;
   justify-content: center;
   align-items: center;
+  background-color: white;
+  color: black;
 }
 button.toggle.encode {
-  background-color: gray;
-  color: white;
+  border-top: 3px solid black;
+  border-left: 3px solid black;
+  border-bottom: 1px solid black;
+  border-right: 1px solid black;
 }
 
 button.toggle.decode {
-  background-color: white;
-  color: gray;
+  border-top: 1px solid black;
+  border-left: 1px solid black;
+  border-bottom: 3px solid black;
+  border-right: 3px solid black;
 }
 #editor-frame {
-  font-family: monospace;
   width: 860px;
   max-width: 80vw;
+  background-color: white;
+  z-index: 2;
 }
 
 #editor-frame #description {
   margin-top: 5px;
   text-align: right;
+  color: #222222
 }
 #editor {
   word-break: break-all;
