@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -8,9 +8,11 @@
   <body>
     <div id="app">
       <h1>DE-EN</h1>
-      <div id="editor" contenteditable>
-        https://google.com?search=https%3A%2F%2Fdaum.net%3FredirectURL%3Dhttps%253A%252F%252Fnaver.com%253Fid%253D123%2526params%253Dfalse
-
+      <div id="editor-frame">
+        <div id="editor" contenteditable>
+          https://google.com?search=https%3A%2F%2Fdaum.net%3FredirectURL%3Dhttps%253A%252F%252Fnaver.com%253Fid%253D123%2526params%253Dfalse
+        </div>
+        <div id="description">click text to edit</div>
       </div>
     </div>
     <script type="module" src="/src/main.ts"></script>

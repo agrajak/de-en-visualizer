@@ -2,20 +2,54 @@ import "../index.css";
 import * as R from "remeda";
 import { nanoid } from "nanoid";
 
-const editor = document.querySelector("#editor") as HTMLElement;
-let currentNode: Node | null = null;
+class Editor {
+  element: HTMLElement;
+  root: Node | null = null;
+  resetNode() {
+    if (!this.root) return;
 
-function getInnerTextWithoutButton(element: HTMLElement): string {
-  if (element.children.length > 0) {
-    const result = Array.from(element.children)
-      .filter((x): x is HTMLElement => x instanceof HTMLElement)
-      .filter((x) => !(x instanceof HTMLButtonElement))
-      .map((x) => getInnerTextWithoutButton(x));
+    const value = getInnerTextFromNode(this.root);
+    this.element.innerHTML = "";
+    this.element.innerText = value;
 
-    return result.reduce((acc, cur) => acc + cur, "");
+    this.element.setAttribute("contenteditable", "true");
+    if (document.activeElement !== this.element) this.element.focus();
+    this.root = null;
   }
-  return element.innerText;
+
+  setRoot(root: Node) {
+    this.element.setAttribute("contenteditable", "false");
+
+    this.element.innerText = "";
+    const element = renderNode(root, () => {
+      this.setRoot(root);
+    });
+    this.root = root;
+
+    this.element.appendChild(element);
+  }
+
+  getInnerText() {
+    return this.root ? getInnerTextFromNode(this.root) : this.element.innerText;
+  }
+
+  constructor(element: HTMLElement) {
+    this.element = element;
+    this.element.addEventListener("click", () => {
+      this.resetNode();
+    });
+    this.element.addEventListener("blur", () => {
+      const innerText = this.getInnerText();
+      if (innerText) {
+        const node = constructNode(innerText);
+        editor.setRoot(node);
+      }
+    });
+  }
 }
+
+const editor = new Editor(document.querySelector("#editor") as HTMLElement);
+editor.setRoot(constructNode(editor.getInnerText()));
 
 function isEncoded(value: string) {
   try {
@@ -24,28 +58,6 @@ function isEncoded(value: string) {
     return false;
   }
 }
-function prettify() {
-  if (!(editor instanceof HTMLDivElement)) throw new Error("Can't find editor");
-
-  const parentGroup = editor.querySelector(".group");
-
-  const value =
-    parentGroup instanceof HTMLElement
-      ? getInnerTextWithoutButton(parentGroup)
-      : editor.innerText;
-
-  const root = currentNode ? currentNode : constructNode(value);
-  currentNode = root;
-
-  editor.innerText = "";
-  const element = render(root);
-
-  editor.appendChild(element);
-}
-
-editor.addEventListener("input", prettify);
-
-prettify();
 
 type BaseNode = {
   id: string;
@@ -127,14 +139,17 @@ function $toggle(encoded: boolean, onClick: (e: MouseEvent) => void) {
   const text = encoded ? "decode" : "encode";
   const toggle = $("button", ["toggle", text], text);
 
-  toggle.addEventListener("click", onClick);
+  toggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onClick(e);
+  });
 
   box.appendChild(toggle);
 
   return box;
 }
 
-function render(node: Node): HTMLElement {
+function renderNode(node: Node, onNodeChanged?: () => void): HTMLElement {
   const group = $("span", "group");
   group.setAttribute("id", node.id);
 
@@ -144,7 +159,7 @@ function render(node: Node): HTMLElement {
       if (!(target instanceof HTMLButtonElement)) return;
       if (node.id) {
         node.encoded = !Boolean(node.encoded);
-        prettify();
+        if (onNodeChanged) onNodeChanged();
       }
     })
   );
@@ -177,7 +192,7 @@ function render(node: Node): HTMLElement {
           } else {
             const valueBox = $("span", "value-box");
 
-            const node = render(param.value);
+            const node = renderNode(param.value, onNodeChanged);
             valueBox.appendChild(node);
             paramEl.appendChild(valueBox);
           }

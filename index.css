@@ -38,11 +38,20 @@ button.toggle.decode {
   background-color: white;
   color: gray;
 }
-#editor {
+#editor-frame {
   font-family: monospace;
+  width: 860px;
+  max-width: 80vw;
+}
+
+#editor-frame #description {
+  margin-top: 5px;
+  text-align: right;
+}
+#editor {
+  word-break: break-all;
   font-size: 40px;
   padding: 8px 10px;
-  width: 860px;
   border: 1px solid lightgray;
   border-radius: 15px;
 }
@@ -56,14 +65,11 @@ button.toggle.decode {
   line-height: 1.5em;
   background-color: white;
 }
-.group.value {
-  background-color: aliceblue;
-}
 .value-box {
   padding: 10px;
   display: block;
   border-radius: 10px;
-  background-color: aliceblue;
+  background-color: lightblue;
 }
 
 .key {
