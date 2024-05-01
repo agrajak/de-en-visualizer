@@ -1,6 +1,9 @@
 import "../index.css";
 import * as R from "remeda";
 import { nanoid } from "nanoid";
+import { produce } from 'immer'
+import React from 'react';
+import ReactDOM from 'react-dom/client'
 
 class Editor {
   element: HTMLElement;
@@ -21,6 +24,8 @@ class Editor {
     this.element.setAttribute("contenteditable", "false");
 
     this.element.innerText = "";
+
+
     const element = renderNode(root, () => {
       this.setRoot(root);
     });
@@ -54,8 +59,38 @@ class Editor {
   }
 }
 
-const editor = new Editor(document.querySelector("#editor") as HTMLElement);
-editor.setRoot(constructNode(editor.getInnerText()));
+type NodeChangeEvent = { id: string, encoded: boolean };
+
+function EditorComponent({ initText }: { initText: string }) {
+  const [node, setNode] = React.useState(constructNode(initText));
+
+  return <Render node={node} onNodeChanged={(event) => {
+    setNode(produce(node, draftState => {
+      function searchNode(node: Node) {
+        if (node.id === event.id) {
+          node.encoded = event.encoded
+        }
+
+        if (node.type === 'string') return;
+        node.params?.forEach(param => {
+          if (param.value.type === 'url') {
+            searchNode(param.value);
+          }
+        })
+
+      }
+      searchNode(draftState);
+    }))
+  }}></Render>
+}
+
+const editor = document.querySelector('#editor') as HTMLElement
+const root = ReactDOM.createRoot(editor)
+
+root.render(<EditorComponent initText={editor.innerText}></EditorComponent>)
+
+/* const editor = new Editor(document.querySelector("#editor") as HTMLElement);
+ editor.setRoot(constructNode(editor.getInnerText()));
 
 document.addEventListener("paste", (e: ClipboardEvent) => {
   if (e.clipboardData) {
@@ -72,6 +107,7 @@ if (query) {
   editor.setRoot(node);
 }
 
+*/
 function isEncoded(value: string) {
   try {
     return decodeURIComponent(value) !== value;
@@ -79,21 +115,44 @@ function isEncoded(value: string) {
     return false;
   }
 }
-
 type BaseNode = {
   id: string;
   encoded?: boolean;
 };
 type Node =
   | ({
-      type: "url";
-      content: string;
-      params?: { key: string; value: Node }[];
-    } & BaseNode)
+    type: "url";
+    content: string;
+    params?: { key: string; value: Node }[];
+  } & BaseNode)
   | ({
-      type: "string";
-      content: string;
-    } & BaseNode);
+    type: "string";
+    content: string;
+  } & BaseNode);
+
+function Render({ node, onNodeChanged }: { node: Node, onNodeChanged?: (event: NodeChangeEvent) => void }) {
+  return <span className="group" id={node.id}>
+    <div contentEditable={false}><button className="toggle" onClick={() => {
+      if (!onNodeChanged) return;
+      onNodeChanged({
+        id: node.id,
+        encoded: !node.encoded
+      })
+    }}>{node.encoded ? 'decode' : 'encode'}</button></div>
+    {node.encoded ? <span className="encoded">{getInnerTextFromNode(node)}</span> : <>
+      <span className="content">{node.content}</span>
+      {node.type === 'url' ? node.params?.map((param, index) => <React.Fragment key={param.key}>
+        <span className="symbol">{index === 0 ? '?' : '&'}</span>
+
+        <span>
+          <span className="key">{param.key}</span>
+          <span className="symbol">=</span>
+          {param.value.type === 'string' ? <span className="value">{param.value.content}</span> : <span className="value-box"><Render node={param.value} onNodeChanged={onNodeChanged}></Render></span>}
+        </span></React.Fragment>) : null}
+    </>
+    }
+  </span>
+}
 
 function getInnerTextFromNode(node: Node): string {
   let value = "";
@@ -141,91 +200,4 @@ function constructNode(value: string): Node {
       content: value,
     };
   }
-}
-
-function $(tag: string, name: string | string[], text?: string) {
-  const el = document.createElement(tag);
-  if (typeof name === "string") {
-    el.classList.add(name);
-  } else {
-    name.filter((x) => x).forEach((x) => el.classList.add(x));
-  }
-  if (text) el.innerText = text;
-  return el;
-}
-
-function $toggle(encoded: boolean, onClick: (e: MouseEvent) => void) {
-  const box = $("div", "toggle-box");
-  box.setAttribute("contenteditable", "false");
-  const text = encoded ? "decode" : "encode";
-  const toggle = $("button", ["toggle", text], text);
-
-  toggle.addEventListener("click", (e) => {
-    e.stopPropagation();
-    onClick(e);
-  });
-
-  box.appendChild(toggle);
-
-  return box;
-}
-
-function renderNode(node: Node, onNodeChanged?: () => void): HTMLElement {
-  const group = $("span", "group");
-  group.setAttribute("id", node.id);
-
-  group.appendChild(
-    $toggle(Boolean(node.encoded), (e) => {
-      const target = e.target;
-      if (!(target instanceof HTMLButtonElement)) return;
-      if (node.id) {
-        node.encoded = !Boolean(node.encoded);
-        if (onNodeChanged) onNodeChanged();
-      }
-    })
-  );
-
-  if (node.encoded) {
-    const encoded = $("span", "encoded", getInnerTextFromNode(node));
-    group.appendChild(encoded);
-    return group;
-  }
-
-  const content = $("span", "content", node.content);
-  group.appendChild(content);
-
-  const params =
-    node.type === "url"
-      ? node.params?.map((param) => {
-          const paramEl = $("span", []);
-
-          const key = document.createElement("span");
-          key.classList.add("key");
-          key.innerText = param.key;
-          paramEl.appendChild(key);
-
-          const equation = $("span", "symbol", "=");
-
-          paramEl.appendChild(equation);
-          if (param.value.type === "string") {
-            const value = $("span", "value", param.value.content);
-            paramEl.appendChild(value);
-          } else {
-            const valueBox = $("span", "value-box");
-
-            const node = renderNode(param.value, onNodeChanged);
-            valueBox.appendChild(node);
-            paramEl.appendChild(valueBox);
-          }
-
-          return paramEl;
-        })
-      : [];
-
-  params?.forEach((param, index) => {
-    const symbol = $("span", "symbol", index === 0 ? "?" : "&");
-    group.appendChild(symbol);
-    group.appendChild(param);
-  });
-  return group;
 }
