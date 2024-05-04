@@ -14,7 +14,6 @@ section#author {
   right: 5px;
   bottom: 5px;
   color: lightgray;
-  
 }
 
 h1 {
@@ -25,11 +24,15 @@ h1 {
   color: gray;
 }
 
-
 div.toggle-box {
   line-height: 0;
 }
-button.toggle {
+.button-group {
+  display: flex;
+  justify-content: center;
+  flex-gap: 7px;
+}
+button {
   height: 30px;
   line-height: 10px;
   padding: 4px 8px;
@@ -40,14 +43,14 @@ button.toggle {
   background-color: white;
   color: black;
 }
-button.toggle.encode {
+button.invert {
   border-top: 3px solid black;
   border-left: 3px solid black;
   border-bottom: 1px solid black;
   border-right: 1px solid black;
 }
 
-button.toggle.decode {
+button {
   border-top: 1px solid black;
   border-left: 1px solid black;
   border-bottom: 3px solid black;
@@ -63,7 +66,7 @@ button.toggle.decode {
 #editor-frame #description {
   margin-top: 5px;
   text-align: right;
-  color: #222222
+  color: #222222;
 }
 #editor {
   word-break: break-all;
@@ -90,10 +93,10 @@ button.toggle.decode {
 }
 
 .key {
-  background-color: yellow
+  background-color: yellow;
 }
 .content {
-  background-color: pink
+  background-color: pink;
 }
 .value {
   background-color: lightblue;
@@ -102,3 +105,4 @@ button.toggle.decode {
 .symbol {
   color: gray;
 }
+
