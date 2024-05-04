@@ -75,13 +75,6 @@ const root = ReactDOM.createRoot(editor)
 
 root.render(<EditorComponent initText={query ?? editor.innerText}></EditorComponent>)
 
-function isEncoded(value: string) {
-  try {
-    return decodeURIComponent(value) !== value;
-  } catch (e) {
-    return false;
-  }
-}
 
 function Group({ node, onNodeChanged }: { node: Node, onNodeChanged?: (event: NodeChangeEvent) => void }) {
 
@@ -101,13 +94,16 @@ function Group({ node, onNodeChanged }: { node: Node, onNodeChanged?: (event: No
         content: innerText
       })
       setEditable(false);
-    }} id={node.id}><div contentEditable>{getInnerTextFromNode((node))}</div></span>)
+    }} id={node.id}><div contentEditable ref={(element) => {
+      if (!element) return;
+      element.focus();
+    }}>{getInnerTextFromNode((node))}</div></span>)
 
   }
   return <span className="group" id={node.id} onClick={event => {
+    event.stopPropagation();
     if (event.target instanceof HTMLSpanElement) {
       setEditable(true);
-
     }
   }}>
     <div className="button-group"><button className={node.encoded ? '' : 'invert'} onClick={() => {
@@ -163,7 +159,7 @@ function constructNode(value: string): Node {
 
     return {
       type: "url",
-      encoded: isEncoded(value),
+      encoded: false,
       id,
       content: url.origin,
       params: Array.from(url.searchParams.entries()).map(([key, value]) => {
