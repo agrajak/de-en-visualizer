@@ -3,6 +3,7 @@ import * as R from "remeda";
 import { nanoid } from "nanoid";
 import { produce } from 'immer'
 import React from 'react';
+import copyIcon from '../public/copy-icon.svg';
 import ReactDOM from 'react-dom/client'
 
 type BaseNode = {
@@ -75,6 +76,35 @@ const root = ReactDOM.createRoot(editor)
 
 root.render(<EditorComponent initText={query ?? editor.innerText}></EditorComponent>)
 
+let previousElement: HTMLDivElement | null = null;
+function openToast(orangeText: string, text: string) {
+  const body = document.querySelector('body');
+  if (!body) return;
+  console.log({ previousElement })
+  if (previousElement) body.removeChild(previousElement);
+  const toast = document.createElement('div');
+
+  toast.classList.add('toast')
+  toast.classList.add('shadow')
+
+  const orangeSpan = document.createElement('span');
+  orangeSpan.classList.add('orange');
+  orangeSpan.innerText = orangeText;
+
+  const span = document.createElement('span');
+  span.innerText = text;
+
+  toast.appendChild(orangeSpan);
+  toast.appendChild(span);
+
+
+  body.appendChild(toast);
+  previousElement = toast;
+  toast.addEventListener("animationend", () => {
+    body.removeChild(toast);
+  })
+}
+
 
 function Group({ node, onNodeChanged }: { node: Node, onNodeChanged?: (event: NodeChangeEvent) => void }) {
 
@@ -106,14 +136,21 @@ function Group({ node, onNodeChanged }: { node: Node, onNodeChanged?: (event: No
       setEditable(true);
     }
   }}>
-    <div className="button-group"><button className={node.encoded ? '' : 'invert'} onClick={() => {
-      if (!onNodeChanged) return;
-      onNodeChanged({
-        name: 'encode-toggle',
-        id: node.id,
-        encoded: !node.encoded
-      })
-    }}>{node.encoded ? 'decode' : 'encode'}</button>
+    <div className="button-group">
+      <button className={!node.encoded ? 'shadow' : 'invert-shadow'} onClick={() => {
+        if (!onNodeChanged) return;
+        onNodeChanged({
+          name: 'encode-toggle',
+          id: node.id,
+          encoded: !node.encoded
+        })
+      }}>{node.encoded ? 'decode' : 'encode'}</button>
+      <button><img width="16px" height="16px" src={copyIcon} onClick={() => {
+
+        const buffer = getInnerTextFromNode(node)
+        openToast(buffer, ` copied to clipboard successfully!`);
+        window.navigator.clipboard.writeText(buffer);
+      }}></img></button>
 
     </div>
     {node.encoded ? <span className="encoded">{getInnerTextFromNode(node)}</span> : <>
@@ -156,6 +193,7 @@ function constructNode(value: string): Node {
   const id = nanoid();
   try {
     const url = new URL(value);
+
 
     return {
       type: "url",

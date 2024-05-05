@@ -30,7 +30,21 @@ div.toggle-box {
 .button-group {
   display: flex;
   justify-content: center;
-  flex-gap: 7px;
+  gap: 5px;
+}
+
+.shadow {
+  border-top: 1px solid black;
+  border-left: 1px solid black;
+  border-bottom: 3px solid black;
+  border-right: 3px solid black;
+}
+
+.invert-shadow {
+  border-top: 3px solid black;
+  border-left: 3px solid black;
+  border-bottom: 1px solid black;
+  border-right: 1px solid black;
 }
 button {
   height: 30px;
@@ -43,19 +57,47 @@ button {
   background-color: white;
   color: black;
 }
-button.invert {
+
+button:active {
   border-top: 3px solid black;
   border-left: 3px solid black;
   border-bottom: 1px solid black;
   border-right: 1px solid black;
 }
 
-button {
-  border-top: 1px solid black;
-  border-left: 1px solid black;
-  border-bottom: 3px solid black;
-  border-right: 3px solid black;
+.orange {
+  color: orange;
 }
+
+.toast {
+  z-index: 100;
+  position: fixed;
+  word-break: break-all;
+  padding: 5px;
+  background-color: white;
+  left: calc(50vw - 200px);
+  top: 50px;
+  width: 400px;
+  border-radius: 5px;
+  opacity: 0;
+  animation: toast 12s 1;
+}
+
+@keyframes toast {
+  0% {
+    opacity: 0;
+  }
+  5% {
+    opacity: 1;
+  }
+  95% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 #editor-frame {
   width: 860px;
   max-width: 80vw;
