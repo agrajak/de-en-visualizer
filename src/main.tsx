@@ -21,10 +21,11 @@ type Node =
     content: string;
   } & BaseNode);
 
-type NodeChangeEvent = ToggleEncodeEvent | ContentChangedEvent | UpdateNodeEvent;
+type NodeChangeEvent = ToggleEncodeEvent | ContentChangedEvent | UpdateNodeEvent | FieldChangedEvent;
 
 type ToggleEncodeEvent = { name: 'encode-toggle', id: string, encoded: boolean };
 type ContentChangedEvent = { name: 'content-changed', id: string, content: string };
+type FieldChangedEvent = { [FieldName in keyof Node]: { name: 'field-change', id: string, fieldName: FieldName, value: Node[FieldName] } }[keyof Node];
 type UpdateNodeEvent = { name: 'update-node', id: string, node: Node };
 
 
@@ -45,6 +46,8 @@ function EditorComponent({ initText }: { initText: string }) {
     setNode((node) => {
       function mapNode(node: Node): Node {
         // terminal condition for recursive function
+        if (!event) return node;
+
         if (node.id === event.id) {
           console.log({ event, node });
           if (event.name === 'encode-toggle') {
@@ -52,6 +55,10 @@ function EditorComponent({ initText }: { initText: string }) {
           }
           if (event.name === 'content-changed') {
             return constructNode(event.content);
+          }
+
+          if (event.name === 'update-node') {
+            return event.node;
           }
         }
         // do the search
@@ -76,12 +83,14 @@ const root = ReactDOM.createRoot(editor)
 
 root.render(<EditorComponent initText={query ?? editor.innerText}></EditorComponent>)
 
-let previousElement: HTMLDivElement | null = null;
 function openToast(orangeText: string, text: string) {
   const body = document.querySelector('body');
   if (!body) return;
-  console.log({ previousElement })
-  if (previousElement) body.removeChild(previousElement);
+  const toasts = document.querySelectorAll('.toast');
+  toasts.forEach(toast => {
+    body.removeChild(toast)
+  });
+
   const toast = document.createElement('div');
 
   toast.classList.add('toast')
@@ -99,12 +108,86 @@ function openToast(orangeText: string, text: string) {
 
 
   body.appendChild(toast);
-  previousElement = toast;
   toast.addEventListener("animationend", () => {
     body.removeChild(toast);
   })
 }
 
+
+function GroupEditor({ initNode, onNodeChanged, onCancel }: { initNode: Node, onNodeChanged?: (event: NodeChangeEvent) => void, onCancel?: () => void }) {
+
+  const [element, setElement] = React.useState<HTMLDivElement | null>(null)
+
+
+  function getStringFromElement(): string {
+
+    if (!onNodeChanged) return '';
+    if (!element) return '';
+
+    // todo construct node from queryString
+    function getInnerTextFromSelector(baseElement: HTMLElement, selector: string) {
+      if (!baseElement) return ''
+      const el = baseElement.querySelector(selector)
+      if (!(el instanceof HTMLElement)) return ''
+      return el.innerText
+    }
+
+    const content = getInnerTextFromSelector(element, '.content')
+    const params = Array.from(element.querySelectorAll('.param')).map(paramElement => {
+      if (!(paramElement instanceof HTMLElement)) return null;
+      const key = getInnerTextFromSelector(paramElement, '.key')
+      const value = getInnerTextFromSelector(paramElement, '.value')
+
+      return `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
+
+    }).filter(x => x).join('&');
+
+    return params ? `${content}?${params}` : content;
+  }
+
+  return <span className="group editing"><div ref={(node) => {
+    if (!node) return;
+    setElement(node);
+  }}>
+    {initNode.type === 'string' ? <span className="content" contentEditable>{initNode.content}</span> : <div>
+      <span className="content" contentEditable>{initNode.content}</span><span className="symbol">?</span><br></br>
+      {initNode.params?.map((param) => {
+        // const isLast = index === initNode.params!.length - 1
+
+        return <div className="param" key={param.key}>
+          <span className="key" contentEditable>{param.key}</span>
+          <span className="symbol">=</span>
+          <span className="value" contentEditable>{getInnerTextFromNode(param.value)}</span>
+          {/**
+
+          <button className="shadow" style={{ marginLeft: 5 }} onClick={()=>{
+          }}>✕</button>
+          {isLast ? <button className="shadow" style={{ marginLeft: 5 }}>+</button> : null}
+          */}
+        </div>
+      })}
+      <div className="right">
+        <button className="shadow" onClick={() => {
+          if (onCancel) onCancel();
+        }}>cancel</button>
+        <button className="shadow" style={{ marginLeft: 5 }} onClick={() => {
+          if (!onNodeChanged) return;
+
+          const text = getStringFromElement();
+
+          const node = constructNode(text)
+
+          onNodeChanged({
+            name: 'update-node',
+            id: initNode.id,
+            node
+          })
+        }}>done</button>
+      </div>
+    </div>}
+
+  </div></span>
+}
 
 function Group({ node, onNodeChanged }: { node: Node, onNodeChanged?: (event: NodeChangeEvent) => void }) {
 
@@ -112,27 +195,21 @@ function Group({ node, onNodeChanged }: { node: Node, onNodeChanged?: (event: No
   console.log('group', node.id, node.content, node)
 
   if (editable) {
-    return (<span className="group" onBlur={(event) => {
-      if (!onNodeChanged) return;
-      const element = event.target;
-      if (!(element instanceof HTMLElement)) return;
-
-      const innerText = element.innerText;
-      onNodeChanged({
-        name: 'content-changed',
-        id: node.id,
-        content: innerText
-      })
+    return <GroupEditor initNode={node} onNodeChanged={event => {
+      if (onNodeChanged) {
+        onNodeChanged(event);
+        setEditable(false);
+      }
+    }} onCancel={() => {
       setEditable(false);
-    }} id={node.id}><div contentEditable ref={(element) => {
-      if (!element) return;
-      element.focus();
-    }}>{getInnerTextFromNode((node))}</div></span>)
+    }}></GroupEditor>
 
   }
   return <span className="group" id={node.id} onClick={event => {
     event.stopPropagation();
     if (event.target instanceof HTMLSpanElement) {
+      if (
+        event.target.closest('.editing')) return;
       setEditable(true);
     }
   }}>

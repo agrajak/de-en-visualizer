@@ -2,6 +2,11 @@ body {
   font-family: monospace;
 }
 
+.right {
+  display: flex;
+  justify-content: right;
+}
+
 #app {
   display: flex;
   flex-direction: column;
@@ -51,11 +56,12 @@ button {
   line-height: 10px;
   padding: 4px 8px;
   border-radius: 5px;
-  display: flex;
+  display: inline-flex;
   justify-content: center;
   align-items: center;
   background-color: white;
   color: black;
+  vertical-align: middle;
 }
 
 button:active {
@@ -142,6 +148,22 @@ button:active {
 }
 .value {
   background-color: lightblue;
+}
+
+.editing .key {
+  background-color: white;
+  border-radius: 5px;
+  border: 3px solid yellow;
+}
+.editing .content {
+  background-color: white;
+  border-radius: 5px;
+  border: 3px solid pink;
+}
+.editing .value {
+  background-color: white;
+  border-radius: 5px;
+  border: 3px solid lightblue;
 }
 
 .symbol {
