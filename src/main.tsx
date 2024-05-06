@@ -32,7 +32,6 @@ type UpdateNodeEvent = { name: 'update-node', id: string, node: Node };
 
 function EditorComponent({ initText }: { initText: string }) {
   const [node, setNode] = React.useState(constructNode(initText));
-  console.log({ node })
 
   React.useEffect(() => {
     document.addEventListener("paste", (e: ClipboardEvent) => {
@@ -41,16 +40,23 @@ function EditorComponent({ initText }: { initText: string }) {
         setNode(constructNode(text));
       }
     });
+
+    window.addEventListener("popstate", (e: PopStateEvent) => {
+      const data = e.state
+      if (typeof data !== 'string') return;
+      setNode(constructNode(data));
+    })
   }, []);
 
   return <Group node={node} onNodeChanged={(event) => {
+
+
     setNode((node) => {
       function mapNode(node: Node): Node {
         // terminal condition for recursive function
         if (!event) return node;
 
         if (node.id === event.id) {
-          console.log({ event, node });
           if (event.name === 'encode-toggle') {
             return produce(node, draft => { draft.encoded = event.encoded });
           }
@@ -69,6 +75,7 @@ function EditorComponent({ initText }: { initText: string }) {
           }
         }
         // do the search
+
         if (node.type === 'string') return node;
 
         return produce(node, draft => {
@@ -77,7 +84,15 @@ function EditorComponent({ initText }: { initText: string }) {
           });
         })
       }
-      return mapNode(node);
+      const result = mapNode(node);
+
+      const totalQuery = getInnerTextFromNode(result);
+
+      const currentURL = new URL(window.location.href);
+      currentURL.searchParams.set('query', totalQuery);
+      window.history.pushState(totalQuery, '', currentURL.href)
+      return result;
+
     });
   }}></Group>
 }
@@ -177,10 +192,12 @@ function GroupEditor({ initNode, onNodeChanged, onCancel }: { initNode: Node, on
           }}>✕</button>
         </div>
       })}
-      <div>
-        <button className="shadow" style={{ marginLeft: 5 }} onClick={() => {
-          setParams(arr => [...arr, { id: nanoid(), key: 'abc', value: 'def' }])
-        }}>add parameter</button>
+      <div style={{ opacity: 0.2 }} onClick={() => {
+        setParams(arr => [...arr, { id: nanoid(), key: 'abc', value: 'def' }])
+      }}>
+        <span className="key">click to</span>
+        <span className="symbol">=</span>
+        <span className="value">add parameter</span>
       </div>
 
       <div className="right">
@@ -209,7 +226,6 @@ function GroupEditor({ initNode, onNodeChanged, onCancel }: { initNode: Node, on
 function Group({ node, onNodeChanged }: { node: Node, onNodeChanged?: (event: NodeChangeEvent) => void }) {
 
   const [editable, setEditable] = React.useState(false);
-  console.log('group', node.id, node.content, node)
 
   if (editable) {
     return <GroupEditor initNode={node} onNodeChanged={event => {
