@@ -10,22 +10,23 @@ type BaseNode = {
   id: string;
   encoded?: boolean;
 };
+type Param = { key: string; value: Node };
 type Node =
   | ({
     type: "url";
     content: string;
-    params?: { key: string; value: Node }[];
+    params?: Param[];
   } & BaseNode)
   | ({
     type: "string";
     content: string;
   } & BaseNode);
 
-type NodeChangeEvent = ToggleEncodeEvent | ContentChangedEvent | UpdateNodeEvent | FieldChangedEvent;
+type NodeChangeEvent = ToggleEncodeEvent | ContentChangedEvent | UpdateNodeEvent | UpdateParamsEvent;
 
 type ToggleEncodeEvent = { name: 'encode-toggle', id: string, encoded: boolean };
 type ContentChangedEvent = { name: 'content-changed', id: string, content: string };
-type FieldChangedEvent = { [FieldName in keyof Node]: { name: 'field-change', id: string, fieldName: FieldName, value: Node[FieldName] } }[keyof Node];
+type UpdateParamsEvent = { name: 'update-params', id: string, params?: Param[] };
 type UpdateNodeEvent = { name: 'update-node', id: string, node: Node };
 
 
@@ -59,6 +60,12 @@ function EditorComponent({ initText }: { initText: string }) {
 
           if (event.name === 'update-node') {
             return event.node;
+          }
+          if (event.name === 'update-params') {
+            return produce(node, draft => {
+              if (draft.type !== 'url') return;
+              draft.params = event.params;
+            });
           }
         }
         // do the search
@@ -117,6 +124,13 @@ function openToast(orangeText: string, text: string) {
 function GroupEditor({ initNode, onNodeChanged, onCancel }: { initNode: Node, onNodeChanged?: (event: NodeChangeEvent) => void, onCancel?: () => void }) {
 
   const [element, setElement] = React.useState<HTMLDivElement | null>(null)
+  const [params, setParams] = React.useState<{ id: string; key: string; value: string; }[]>(initNode.type === 'url' ? initNode.params?.map(param => {
+    return {
+      id: nanoid(),
+      key: param.key,
+      value: getInnerTextFromNode(param.value)
+    }
+  }) ?? [] : []);
 
 
   function getStringFromElement(): string {
@@ -151,21 +165,24 @@ function GroupEditor({ initNode, onNodeChanged, onCancel }: { initNode: Node, on
   }}>
     {initNode.type === 'string' ? <span className="content" contentEditable>{initNode.content}</span> : <div>
       <span className="content" contentEditable>{initNode.content}</span><span className="symbol">?</span><br></br>
-      {initNode.params?.map((param) => {
-        // const isLast = index === initNode.params!.length - 1
-
-        return <div className="param" key={param.key}>
+      {params?.map((param) => {
+        return <div className="param" key={param.id}>
           <span className="key" contentEditable>{param.key}</span>
           <span className="symbol">=</span>
-          <span className="value" contentEditable>{getInnerTextFromNode(param.value)}</span>
-          {/**
+          <span className="value" contentEditable>{param.value}</span>
 
-          <button className="shadow" style={{ marginLeft: 5 }} onClick={()=>{
+          <button className="shadow" style={{ marginLeft: 5 }} onClick={() => {
+            setParams(arr => arr.filter(item => item.id !== param.id))
+
           }}>✕</button>
-          {isLast ? <button className="shadow" style={{ marginLeft: 5 }}>+</button> : null}
-          */}
         </div>
       })}
+      <div>
+        <button className="shadow" style={{ marginLeft: 5 }} onClick={() => {
+          setParams(arr => [...arr, { id: nanoid(), key: 'abc', value: 'def' }])
+        }}>add parameter</button>
+      </div>
+
       <div className="right">
         <button className="shadow" onClick={() => {
           if (onCancel) onCancel();
@@ -270,7 +287,6 @@ function constructNode(value: string): Node {
   const id = nanoid();
   try {
     const url = new URL(value);
-
 
     return {
       type: "url",
