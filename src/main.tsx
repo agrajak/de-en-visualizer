@@ -1,36 +1,18 @@
 import "../index.css";
-import * as R from "remeda";
-import { nanoid } from "nanoid";
-import { produce } from 'immer'
 import React from 'react';
 import copyIcon from '../public/copy-icon.svg';
 import ReactDOM from 'react-dom/client'
+import openToast from './toast';
+import { nanoid } from "nanoid";
+import { getURLQuery, setURLQuery } from './query-string';
+import { Node, nodeEventReducer, constructNode, getInnerTextFromNode, NodeChangeEvent, getParamsFromNode } from './node';
 
-type BaseNode = {
-  id: string;
-  encoded?: boolean;
-};
-type Param = { key: string; value: Node };
-type Node =
-  | ({
-    type: "url";
-    content: string;
-    params?: Param[];
-  } & BaseNode)
-  | ({
-    type: "string";
-    content: string;
-  } & BaseNode);
+const editor = document.querySelector('#editor') as HTMLElement
+const root = ReactDOM.createRoot(editor)
 
-type NodeChangeEvent = ToggleEncodeEvent | ContentChangedEvent | UpdateNodeEvent | UpdateParamsEvent;
+root.render(<Editor initText={getURLQuery() ?? editor.innerText}></Editor>)
 
-type ToggleEncodeEvent = { name: 'encode-toggle', id: string, encoded: boolean };
-type ContentChangedEvent = { name: 'content-changed', id: string, content: string };
-type UpdateParamsEvent = { name: 'update-params', id: string, params?: Param[] };
-type UpdateNodeEvent = { name: 'update-node', id: string, node: Node };
-
-
-function EditorComponent({ initText }: { initText: string }) {
+function Editor({ initText }: { initText: string }) {
   const [node, setNode] = React.useState(constructNode(initText));
 
   React.useEffect(() => {
@@ -49,117 +31,33 @@ function EditorComponent({ initText }: { initText: string }) {
   }, []);
 
   return <Group node={node} onNodeChanged={(event) => {
-
-
     setNode((node) => {
-      function mapNode(node: Node): Node {
-        // terminal condition for recursive function
-        if (!event) return node;
-
-        if (node.id === event.id) {
-          if (event.name === 'encode-toggle') {
-            return produce(node, draft => { draft.encoded = event.encoded });
-          }
-          if (event.name === 'content-changed') {
-            return constructNode(event.content);
-          }
-
-          if (event.name === 'update-node') {
-            return event.node;
-          }
-          if (event.name === 'update-params') {
-            return produce(node, draft => {
-              if (draft.type !== 'url') return;
-              draft.params = event.params;
-            });
-          }
-        }
-        // do the search
-
-        if (node.type === 'string') return node;
-
-        return produce(node, draft => {
-          draft.params?.forEach(param => {
-            param.value = mapNode(param.value);
-          });
-        })
-      }
-      const result = mapNode(node);
-
+      const result = nodeEventReducer(node, event)
       const totalQuery = getInnerTextFromNode(result);
 
-      const currentURL = new URL(window.location.href);
-      currentURL.searchParams.set('query', totalQuery);
-      window.history.pushState(totalQuery, '', currentURL.href)
+      setURLQuery(totalQuery)
       return result;
 
     });
   }}></Group>
 }
 
-const params = new URLSearchParams(window.location.search);
-const query = params.get("query");
-
-const editor = document.querySelector('#editor') as HTMLElement
-const root = ReactDOM.createRoot(editor)
-
-root.render(<EditorComponent initText={query ?? editor.innerText}></EditorComponent>)
-
-function openToast(orangeText: string, text: string) {
-  const body = document.querySelector('body');
-  if (!body) return;
-  const toasts = document.querySelectorAll('.toast');
-  toasts.forEach(toast => {
-    body.removeChild(toast)
-  });
-
-  const toast = document.createElement('div');
-
-  toast.classList.add('toast')
-  toast.classList.add('shadow')
-
-  const orangeSpan = document.createElement('span');
-  orangeSpan.classList.add('orange');
-  orangeSpan.innerText = orangeText;
-
-  const span = document.createElement('span');
-  span.innerText = text;
-
-  toast.appendChild(orangeSpan);
-  toast.appendChild(span);
-
-
-  body.appendChild(toast);
-  toast.addEventListener("animationend", () => {
-    body.removeChild(toast);
-  })
+function getInnerTextFromSelector(baseElement: HTMLElement, selector: string) {
+  if (!baseElement) return ''
+  const el = baseElement.querySelector(selector)
+  if (!(el instanceof HTMLElement)) return ''
+  return el.innerText
 }
-
 
 function GroupEditor({ initNode, onNodeChanged, onCancel }: { initNode: Node, onNodeChanged?: (event: NodeChangeEvent) => void, onCancel?: () => void }) {
 
-  const [element, setElement] = React.useState<HTMLDivElement | null>(null)
-  const [params, setParams] = React.useState<{ id: string; key: string; value: string; }[]>(initNode.type === 'url' ? initNode.params?.map(param => {
-    return {
-      id: nanoid(),
-      key: param.key,
-      value: getInnerTextFromNode(param.value)
-    }
-  }) ?? [] : []);
-
+  const [element, setElement] = React.useState<HTMLDivElement | null>(null);
+  const [params, setParams] = React.useState<{ id: string; key: string; value: string; }[]>(getParamsFromNode(initNode));
 
   function getStringFromElement(): string {
 
     if (!onNodeChanged) return '';
     if (!element) return '';
-
-    // todo construct node from queryString
-    function getInnerTextFromSelector(baseElement: HTMLElement, selector: string) {
-      if (!baseElement) return ''
-      const el = baseElement.querySelector(selector)
-      if (!(el instanceof HTMLElement)) return ''
-      return el.innerText
-    }
 
     const content = getInnerTextFromSelector(element, '.content')
     const params = Array.from(element.querySelectorAll('.param')).map(paramElement => {
@@ -275,52 +173,4 @@ function Group({ node, onNodeChanged }: { node: Node, onNodeChanged?: (event: No
     </>
     }
   </span>
-}
-
-function getInnerTextFromNode(node: Node): string {
-  let value = "";
-
-  value = value + node.content;
-
-  if (node.type === "url" && node.params) {
-    value = value + "?";
-    const params = new URLSearchParams(
-      R.mapToObj(node.params, (item) => {
-        return [
-          item.key,
-          item.value.type === "url"
-            ? getInnerTextFromNode(item.value)
-            : item.value.content,
-        ];
-      })
-    ).toString();
-    value = value + params;
-  }
-  return value;
-}
-
-function constructNode(value: string): Node {
-  const id = nanoid();
-  try {
-    const url = new URL(value);
-
-    return {
-      type: "url",
-      encoded: false,
-      id,
-      content: url.origin,
-      params: Array.from(url.searchParams.entries()).map(([key, value]) => {
-        return {
-          key,
-          value: constructNode(value),
-        };
-      }),
-    };
-  } catch (e) {
-    return {
-      type: "string",
-      id,
-      content: value,
-    };
-  }
 }
