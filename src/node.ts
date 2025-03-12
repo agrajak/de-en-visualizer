@@ -65,7 +65,7 @@ export function getInnerTextFromNode(node: Node): string {
 
   value = value + node.content;
 
-  if (node.type === "url" && node.params) {
+  if (node.type === "url" && node.params && node.params.length > 0) {
     value = value + "?";
     const params = new URLSearchParams(
       R.mapToObj(node.params, (item) => {
@@ -87,7 +87,7 @@ export function constructNode(value: string): Node {
 
   const id = nanoid();
   try {
-    const searchParams = new URLSearchParams(rest.join('?'));
+    const searchParams = new URLSearchParams(rest.join(''));
 
     return {
       type: "url",
