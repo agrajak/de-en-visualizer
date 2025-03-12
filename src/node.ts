@@ -83,16 +83,18 @@ export function getInnerTextFromNode(node: Node): string {
 }
 
 export function constructNode(value: string): Node {
+  const [origin, ...rest] = value.split('?');
+
   const id = nanoid();
   try {
-    const url = new URL(value);
+    const searchParams = new URLSearchParams(rest.join('?'));
 
     return {
       type: "url",
       encoded: false,
       id,
-      content: url.origin,
-      params: Array.from(url.searchParams.entries()).map(([key, value]) => {
+      content: origin,
+      params: Array.from(searchParams.entries()).map(([key, value]) => {
         return {
           key,
           value: constructNode(value),
@@ -100,6 +102,7 @@ export function constructNode(value: string): Node {
       }),
     };
   } catch (e) {
+    console.error(e)
     return {
       type: "string",
       id,
